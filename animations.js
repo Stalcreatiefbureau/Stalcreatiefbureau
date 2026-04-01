@@ -159,8 +159,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!section) return;
 
   const speed  = parseFloat(section.dataset.speed  ?? 30);
-  const radius = parseFloat(section.dataset.radius ?? 700);
-  const repeat    = parseInt(section.dataset.repeat ?? 2);
+  const repeat = parseInt(section.dataset.repeat   ?? 2);
+
+  function getRadius() {
+    const vw       = window.innerWidth;
+    const radiusLg = parseFloat(section.dataset.radiusLg ?? null);
+    if (radiusLg && vw >= 1440) return radiusLg;
+    return parseFloat(section.dataset.radius ?? 700);
+  }
 
   const list      = section.querySelector('.reviews_list');
   const originals = Array.from(section.querySelectorAll('.reviews_item'));
@@ -183,6 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let degsPerSec = 360 / speed;
 
   function positionCards(offsetDeg) {
+    const radius  = getRadius();
     const cy      = radius;
     const stepDeg = 360 / total;
 
