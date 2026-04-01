@@ -166,10 +166,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const count     = originals.length;
   if (!count) return;
 
-  originals.forEach(item => {
-    const clone = item.cloneNode(true);
-    clone.setAttribute('aria-hidden', 'true');
-    list.appendChild(clone);
+  Array.from({ length: repeat - 1 }).forEach(() => {
+    originals.forEach(item => {
+      const clone = item.cloneNode(true);
+      clone.setAttribute('aria-hidden', 'true');
+      list.appendChild(clone);
+    });
   });
 
   const items      = section.querySelectorAll('.reviews_item');
