@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const vw       = window.innerWidth;
     const radiusLg = parseFloat(section.dataset.radiusLg ?? null);
     if (radiusLg && vw >= 1440) return radiusLg;
-    return parseFloat(section.dataset.radius ?? 700);
+    return parseFloat(section.dataset.radius ?? 2000);
   }
 
   const list      = section.querySelector('.reviews_list');
