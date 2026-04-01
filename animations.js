@@ -439,9 +439,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const cardHeight = items[0].offsetHeight;
   gsap.set(collection, { y: cardHeight / 2 });
 
-  gsap.ticker.add((_, dt) => {
+  const tick = (_, dt) => {
     angle -= degsPerSec * (dt / 1000);
     positionCards(angle);
+  };
+
+  ScrollTrigger.create({
+    trigger     : section,
+    start       : 'top bottom',
+    end         : 'bottom top',
+    onEnter     : () => gsap.ticker.add(tick),
+    onLeave     : () => gsap.ticker.remove(tick),
+    onEnterBack : () => gsap.ticker.add(tick),
+    onLeaveBack : () => gsap.ticker.remove(tick),
   });
 
   window.addEventListener('resize', () => {
