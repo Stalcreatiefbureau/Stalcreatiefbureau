@@ -160,6 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const speed  = parseFloat(section.dataset.speed  ?? 30);
   const radius = parseFloat(section.dataset.radius ?? 700);
+  const repeat    = parseInt(section.dataset.repeat ?? 2);
 
   const list      = section.querySelector('.reviews_list');
   const originals = Array.from(section.querySelectorAll('.reviews_item'));
