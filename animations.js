@@ -3,7 +3,7 @@
 // ============================================================
 
 
-// ── Footer Tekst Animatie ─────────────────────────────────────
+// ── Footer Parallax Animatie ─────────────────────────────────────
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -46,10 +46,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 document.addEventListener('DOMContentLoaded', () => {
 
-  const footerInner = document.querySelector('.footer_inner');
-  if (!footerInner) return;
+  const footerTop = document.querySelector('.footer_top');
+  if (!footerTop) return;
 
-  const wraps = footerInner.querySelectorAll('.footer-top_text-wrap');
+  const wraps = footerTop.querySelectorAll('.footer-top_text-wrap');
   if (wraps.length < 2) return;
 
   const heading1 = wraps[0].querySelector('.heading-style-footer');
@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const tl = gsap.timeline({
     scrollTrigger: {
-      trigger      : footerInner,
+      trigger      : footerTop,
       start        : 'top top+=200px',
       toggleActions: 'play none none none',
     }
