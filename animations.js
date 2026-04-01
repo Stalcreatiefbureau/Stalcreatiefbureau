@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function getRadius() {
     const vw       = window.innerWidth;
     const radiusLg = parseFloat(section.dataset.radiusLg ?? null);
-    if (radiusLg && vw >= 1440) return radiusLg;
+    if (radiusLg && vw >= 1600) return radiusLg;
     return parseFloat(section.dataset.radius ?? 2000);
   }
 
