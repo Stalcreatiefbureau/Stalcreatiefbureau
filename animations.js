@@ -23,7 +23,7 @@ function initFooterParallax(){
   
     if (inner) {
       tl.from(inner, {
-        yPercent: -50,
+        yPercent: -25,
         ease: 'linear'
       });
     }
