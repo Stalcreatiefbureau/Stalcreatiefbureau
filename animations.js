@@ -536,6 +536,8 @@ window.addEventListener('load', () => {
     });
 
     link.addEventListener('mouseleave', () => {
+      cancelAnimationFrame(rafId); // ← direct stoppen
+      rafId = null;
       gsap.to(tag, {
         opacity  : 0,
         scale    : 0,
@@ -544,10 +546,8 @@ window.addEventListener('load', () => {
         ease     : 'power3.in',
         onComplete: () => {
           marquee.pause();
-          cancelAnimationFrame(rafId);
         }
       });
-
       gsap.to(splitDefault.chars, { y: 0,             duration: 0.4, ease: 'power2.inOut', stagger: 0.02 });
       gsap.to(splitHover.chars,   { y: headingHeight, duration: 0.4, ease: 'power2.inOut', stagger: 0.02 });
     });
