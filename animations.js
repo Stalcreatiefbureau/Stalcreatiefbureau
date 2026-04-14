@@ -11,15 +11,14 @@ function initAccordionCSS() {
 
     accordion.addEventListener('click', (event) => {
       const toggle = event.target.closest('[data-accordion-toggle]');
-      if (!toggle) return; // Exit if the clicked element is not a toggle
+      if (!toggle) return;
 
       const singleAccordion = toggle.closest('[data-accordion-status]');
-      if (!singleAccordion) return; // Exit if no accordion container is found
+      if (!singleAccordion) return;
 
       const isActive = singleAccordion.getAttribute('data-accordion-status') === 'active';
       singleAccordion.setAttribute('data-accordion-status', isActive ? 'not-active' : 'active');
-      
-      // When [data-accordion-close-siblings="true"]
+
       if (closeSiblings && !isActive) {
         accordion.querySelectorAll('[data-accordion-status="active"]').forEach((sibling) => {
           if (sibling !== singleAccordion) sibling.setAttribute('data-accordion-status', 'not-active');
@@ -28,11 +27,6 @@ function initAccordionCSS() {
     });
   });
 }
-
-// Initialize Accordion CSS
-document.addEventListener('DOMContentLoaded', () => {
-  initAccordionCSS();
-});
 
 
 // ── Draggable marquee ─────────────────────────────────────
@@ -98,13 +92,13 @@ function initDraggableMarquee() {
     }
     applyTimeScale(baseDirection);
 
-    let isDragging   = false;
-    let rawVelocity  = 0;
+    let isDragging     = false;
+    let rawVelocity    = 0;
     let smoothVelocity = 0;
-    let smoothRotation = 0; // ── aparte lerp voor rotatie
-    let lastMouseX   = 0;
-    let tickerAdded  = false;
-    let throwTween   = null;
+    let smoothRotation = 0;
+    let lastMouseX     = 0;
+    let tickerAdded    = false;
+    let throwTween     = null;
 
     function onTick() {
       smoothVelocity += (rawVelocity - smoothVelocity) * 0.15;
@@ -112,7 +106,6 @@ function initDraggableMarquee() {
       const raw = gsap.utils.clamp(-multiplier * 40, multiplier * 40, smoothVelocity * sensitivity * -60);
       applyTimeScale(raw || baseDirection);
 
-      // Rotatie target zonder clamp — lerp zorgt voor smoothness
       const rotTarget = smoothVelocity * 0.03;
       smoothRotation += (rotTarget - smoothRotation) * 0.1;
 
@@ -153,7 +146,6 @@ function initDraggableMarquee() {
 
       const throwTimeScale = gsap.utils.clamp(-multiplier * 40, multiplier * 40, smoothVelocity * sensitivity * -60);
 
-      // Rotatie doorslingeren vanuit smoothRotation
       items.forEach((item, i) => {
         const base = ROTATION_PATTERN[i % ROTATION_PATTERN.length];
         const peak = base * smoothRotation * 1.4;
@@ -192,50 +184,40 @@ function initDraggableMarquee() {
   });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  initDraggableMarquee();
-});
-
 
 // ── Portfolio list ─────────────────────────────────────
 
 function initPreviewFollower() {
-  // Find every follower wrap
   const wrappers = document.querySelectorAll('[data-follower-wrap]');
 
   wrappers.forEach(wrap => {
-    const collection = wrap.querySelector('[data-follower-collection]');
-    const items = wrap.querySelectorAll('[data-follower-item]');
-    const follower = wrap.querySelector('[data-follower-cursor]');
+    const collection    = wrap.querySelector('[data-follower-collection]');
+    const items         = wrap.querySelectorAll('[data-follower-item]');
+    const follower      = wrap.querySelector('[data-follower-cursor]');
     const followerInner = wrap.querySelector('[data-follower-cursor-inner]');
 
-    let prevIndex = null;
+    let prevIndex  = null;
     let firstEntry = true;
 
-    const offset = 100; // The animation distance in %
-    const duration = 0.5; // The animation duration of all visual transforms
-    const ease = 'power2.inOut';
+    const offset   = 100;
+    const duration = 0.5;
+    const ease     = 'power2.inOut';
 
-    // Initialize follower position
     gsap.set(follower, { xPercent: -50, yPercent: -50 });
 
-    // Quick setters for x/y
     const xTo = gsap.quickTo(follower, 'x', { duration: 0.6, ease: 'power3' });
     const yTo = gsap.quickTo(follower, 'y', { duration: 0.6, ease: 'power3' });
 
-    // Move all followers on mousemove
     window.addEventListener('mousemove', e => {
       xTo(e.clientX);
       yTo(e.clientY);
     });
 
-    // Enter/leave per item within this wrap
     items.forEach((item, index) => {
       item.addEventListener('mouseenter', () => {
         const forward = prevIndex === null || index > prevIndex;
         prevIndex = index;
 
-        // animate out existing visuals
         follower.querySelectorAll('[data-follower-visual]').forEach(el => {
           gsap.killTweensOf(el);
           gsap.to(el, {
@@ -247,13 +229,11 @@ function initPreviewFollower() {
           });
         });
 
-        // clone & insert new visual
         const visual = item.querySelector('[data-follower-visual]');
         if (!visual) return;
         const clone = visual.cloneNode(true);
         followerInner.appendChild(clone);
 
-        // animate it in (unless it's the very first entry)
         if (!firstEntry) {
           gsap.fromTo(clone,
             { yPercent: forward ? offset : -offset },
@@ -278,33 +258,25 @@ function initPreviewFollower() {
       });
     });
 
-    // If pointer leaves the collection, clear any visuals
     collection.addEventListener('mouseleave', () => {
       follower.querySelectorAll('[data-follower-visual]').forEach(el => {
         gsap.killTweensOf(el);
         gsap.delayedCall(duration, () => el.remove());
       });
       firstEntry = true;
-      prevIndex = null;
+      prevIndex  = null;
     });
   });
 }
 
-// Initialize Image Preview Cursor Follower
-document.addEventListener("DOMContentLoaded", () =>{
-  initPreviewFollower();
-})
-
 
 // ── Navbar color ─────────────────────────────────────
 
-(function () {
+function initNavbarColor() {
   const nav = document.querySelector('[data-nav-component]');
   if (!nav) return;
 
-  const NAV_HEIGHT = nav.offsetHeight;
-
-  // Observeer alle donkere secties
+  const NAV_HEIGHT  = nav.offsetHeight;
   const darkSections = document.querySelectorAll('[data-nav-theme="dark"]');
 
   let darkCount = 0;
@@ -327,14 +299,12 @@ document.addEventListener("DOMContentLoaded", () =>{
   );
 
   darkSections.forEach((el) => observer.observe(el));
-})();
+}
 
 
 // ── Footer Parallax Animatie ─────────────────────────────────────
 
-gsap.registerPlugin(ScrollTrigger);
-
-function initFooterParallax(){
+function initFooterParallax() {
   document.querySelectorAll('[data-footer-parallax]').forEach(el => {
     const tl = gsap.timeline({
       scrollTrigger: {
@@ -344,35 +314,24 @@ function initFooterParallax(){
         scrub: true
       }
     });
-  
+
     const inner = el.querySelector('[data-footer-parallax-inner]');
     const dark  = el.querySelector('[data-footer-parallax-dark]');
-  
+
     if (inner) {
-      tl.from(inner, {
-        yPercent: -25,
-        ease: 'linear'
-      });
+      tl.from(inner, { yPercent: -25, ease: 'linear' });
     }
-  
+
     if (dark) {
-      tl.from(dark, {
-        opacity: 0.5,
-        ease: 'linear'
-      }, '<');
+      tl.from(dark, { opacity: 0.5, ease: 'linear' }, '<');
     }
   });
 }
-// Initialize Footer with Parallax Effect
-document.addEventListener('DOMContentLoaded', () => {
-  initFooterParallax();
-});
 
 
 // ── Footer Tekst Animatie ─────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', () => {
-
+function initFooterTekstAnimatie() {
   const footerTop = document.querySelector('.footer_top');
   if (!footerTop) return;
 
@@ -381,7 +340,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const heading1 = wraps[0].querySelector('.heading-style-footer');
   const heading2 = wraps[1].querySelector('.heading-style-footer');
-
   if (!heading1 || !heading2) return;
 
   const h = heading1.offsetHeight;
@@ -395,19 +353,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  tl.to(heading1, {
-    y        : 0,
-    duration : 0.5,
-    ease     : 'power3.out',
-  });
-
-  tl.to(heading2, {
-    y        : 0,
-    duration : 0.5,
-    ease     : 'power3.out',
-  }, '-=0.35');
-
-});
+  tl.to(heading1, { y: 0, duration: 0.5, ease: 'power3.out' });
+  tl.to(heading2, { y: 0, duration: 0.5, ease: 'power3.out' }, '-=0.35');
+}
 
 
 // ── Footer Cursor ───────────────────────────────────────────
@@ -416,28 +364,24 @@ function initDrawPathCursorEffect() {
   if (window.matchMedia('(pointer: coarse)').matches) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-  // Config
-  const trailDuration = 1250; // how long the trail lingers in ms
-  const trailColor = '#a8e943'; // hex color of the trail
+  const trailDuration  = 1250;
+  const trailColor     = '#a8e943';
+  const strokeMinWidth = 5;
+  const strokeMaxWidth = 16;
+  const strokeSmoothing = 0.1;
+  const velocitySlow   = 0.08;
+  const velocityFast   = 2.8;
+  const glowBlur       = 10;
+  const glowIntensity  = 0.25;
+  const cursorLag      = 0.15;
 
-  const strokeMinWidth = 5; // thinnest line (fast movement)
-  const strokeMaxWidth = 16; // thickest line (slow movement)
-  const strokeSmoothing = 0.1; // 0–1 — lower = smoother width transitions
-
-  const velocitySlow = 0.08; // px/ms threshold for "slow"
-  const velocityFast = 2.8; // px/ms threshold for "fast"
-
-  const glowBlur = 10; // px — glow radius
-  const glowIntensity = 0.25; // 0–1 — glow opacity
-
-  const cursorLag = 0.15; // seconds — GSAP easing duration
-
-  const dot = document.querySelector('[data-cursor-dot]');
+  const dot    = document.querySelector('[data-cursor-dot]');
   const canvas = document.querySelector('[data-cursor-canvas]');
+  if (!dot || !canvas) return;
   const ctx = canvas.getContext('2d');
 
-  let points = [];
-  let hasMouse = false;
+  let points       = [];
+  let hasMouse     = false;
   let runningWidth = strokeMinWidth;
 
   function hexToRgb(hex) {
@@ -452,20 +396,16 @@ function initDrawPathCursorEffect() {
   const yTo = gsap.quickTo(dot, 'y', { duration: cursorLag, ease: 'power3' });
 
   function resize() {
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = window.innerWidth * dpr;
+    const dpr    = window.devicePixelRatio || 1;
+    canvas.width  = window.innerWidth  * dpr;
     canvas.height = window.innerHeight * dpr;
     ctx.scale(dpr, dpr);
   }
   resize();
   window.addEventListener('resize', resize);
 
-  document.addEventListener('mouseenter', () => {
-    dot.style.opacity = '1';
-  });
-  document.addEventListener('mouseleave', () => {
-    dot.style.opacity = '0';
-  });
+  document.addEventListener('mouseenter', () => { dot.style.opacity = '1'; });
+  document.addEventListener('mouseleave', () => { dot.style.opacity = '0'; });
 
   window.addEventListener('mousemove', (e) => {
     hasMouse = true;
@@ -475,22 +415,18 @@ function initDrawPathCursorEffect() {
 
   gsap.ticker.add(() => {
     if (!hasMouse) return;
-
     const x = gsap.getProperty(dot, 'x');
     const y = gsap.getProperty(dot, 'y');
-
     if (points.length > 0) {
       const last = points[points.length - 1];
       const dx = x - last.x;
       const dy = y - last.y;
       if (dx * dx + dy * dy < 0.1) return;
     }
-
     points.push({ x, y, time: performance.now() });
   });
 
   function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
-
   function remap(v, inMin, inMax, outMin, outMax) {
     const t = clamp((v - inMin) / (inMax - inMin), 0, 1);
     return outMin + t * (outMax - outMin);
@@ -500,17 +436,15 @@ function initDrawPathCursorEffect() {
     const now = performance.now();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     points = points.filter(p => now - p.time < trailDuration);
-
     if (points.length >= 3) drawTrail(now);
     requestAnimationFrame(render);
   }
 
   function drawTrail(now) {
     const [r, g, b] = color;
-
-    ctx.lineCap = 'butt';
-    ctx.shadowColor = `rgba(${r}, ${g}, ${b}, ${glowIntensity})`;
-    ctx.shadowBlur = glowBlur;
+    ctx.lineCap      = 'butt';
+    ctx.shadowColor  = `rgba(${r}, ${g}, ${b}, ${glowIntensity})`;
+    ctx.shadowBlur   = glowBlur;
 
     for (let i = 1; i < points.length - 1; i++) {
       const prev = points[i - 1];
@@ -522,61 +456,55 @@ function initDrawPathCursorEffect() {
       const mx2 = (curr.x + next.x) * 0.5;
       const my2 = (curr.y + next.y) * 0.5;
 
-      const dx = curr.x - prev.x;
-      const dy = curr.y - prev.y;
-      const dt = curr.time - prev.time || 1;
+      const dx  = curr.x - prev.x;
+      const dy  = curr.y - prev.y;
+      const dt  = curr.time - prev.time || 1;
       const velocity = Math.sqrt(dx * dx + dy * dy) / dt;
 
       const targetWidth = remap(velocity, velocitySlow, velocityFast, strokeMaxWidth, strokeMinWidth);
       runningWidth += (targetWidth - runningWidth) * strokeSmoothing;
 
-      const age = now - curr.time;
-      const life = 1 - age / trailDuration;
+      const age   = now - curr.time;
+      const life  = 1 - age / trailDuration;
       const alpha = life * life;
       if (alpha <= 0.005) continue;
 
       ctx.beginPath();
       ctx.moveTo(mx1, my1);
       ctx.quadraticCurveTo(curr.x, curr.y, mx2, my2);
-      ctx.lineWidth = runningWidth;
-      ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      ctx.lineWidth    = runningWidth;
+      ctx.strokeStyle  = `rgba(${r}, ${g}, ${b}, ${alpha})`;
       ctx.stroke();
     }
 
     ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
+    ctx.shadowBlur  = 0;
   }
 
   requestAnimationFrame(render);
 }
 
 
-// Initialize Draw Path Cursor Effect
-document.addEventListener('DOMContentLoaded', () => {
-  initDrawPathCursorEffect();
-});
-
-
 // ── Logo wall cycle ───────────────────────────────────────────
 
 function initLogoWallCycle() {
-  const loopDelay = 1.5;   // Loop Duration
-  const duration  = 0.9;   // Animation Duration
+  const loopDelay = 1.5;
+  const duration  = 0.9;
 
   document.querySelectorAll('[data-logo-wall-cycle-init]').forEach(root => {
-    const list   = root.querySelector('[data-logo-wall-list]');
-    const items  = Array.from(list.querySelectorAll('[data-logo-wall-item]'));
+    const list  = root.querySelector('[data-logo-wall-list]');
+    const items = Array.from(list.querySelectorAll('[data-logo-wall-item]'));
 
-    const shuffleFront = root.getAttribute('data-logo-wall-shuffle') !== 'false';
+    const shuffleFront    = root.getAttribute('data-logo-wall-shuffle') !== 'false';
     const originalTargets = items
       .map(item => item.querySelector('[data-logo-wall-target]'))
       .filter(Boolean);
 
-    let visibleItems   = [];
-    let visibleCount   = 0;
-    let pool           = [];
-    let pattern        = [];
-    let patternIndex   = 0;
+    let visibleItems  = [];
+    let visibleCount  = 0;
+    let pool          = [];
+    let pattern       = [];
+    let patternIndex  = 0;
     let tl;
 
     function isVisible(el) {
@@ -593,18 +521,12 @@ function initLogoWallCycle() {
     }
 
     function setup() {
-      if (tl) {
-        tl.kill();
-      }
+      if (tl) tl.kill();
       visibleItems = items.filter(isVisible);
       visibleCount = visibleItems.length;
-
-      pattern = shuffleArray(
-        Array.from({ length: visibleCount }, (_, i) => i)
-      );
+      pattern      = shuffleArray(Array.from({ length: visibleCount }, (_, i) => i));
       patternIndex = 0;
 
-      // remove all injected targets
       items.forEach(item => {
         item.querySelectorAll('[data-logo-wall-target]').forEach(old => old.remove());
       });
@@ -636,21 +558,18 @@ function initLogoWallCycle() {
 
     function swapNext() {
       const nowCount = items.filter(isVisible).length;
-      if (nowCount !== visibleCount) {
-        setup();
-        return;
-      }
+      if (nowCount !== visibleCount) { setup(); return; }
       if (!pool.length) return;
 
-      const idx = pattern[patternIndex % visibleCount];
+      const idx       = pattern[patternIndex % visibleCount];
       patternIndex++;
 
       const container = visibleItems[idx];
-      const parent =
+      const parent    =
         container.querySelector('[data-logo-wall-target-parent]') ||
         container.querySelector('*:has(> [data-logo-wall-target])') ||
         container;
-      const existing = parent.querySelectorAll('[data-logo-wall-target]');
+      const existing  = parent.querySelectorAll('[data-logo-wall-target]');
       if (existing.length > 1) return;
 
       const current  = parent.querySelector('[data-logo-wall-target]');
@@ -661,36 +580,27 @@ function initLogoWallCycle() {
 
       if (current) {
         gsap.to(current, {
-          yPercent: -50,
-          autoAlpha: 0,
+          yPercent  : -50,
+          autoAlpha : 0,
           duration,
-          ease: "expo.inOut",
-          onComplete: () => {
-            current.remove();
-            pool.push(current);
-          }
+          ease      : "expo.inOut",
+          onComplete: () => { current.remove(); pool.push(current); }
         });
       }
 
-      gsap.to(incoming, {
-        yPercent: 0,
-        autoAlpha: 1,
-        duration,
-        delay: 0.1,
-        ease: "expo.inOut"
-      });
+      gsap.to(incoming, { yPercent: 0, autoAlpha: 1, duration, delay: 0.1, ease: "expo.inOut" });
     }
 
     setup();
 
     ScrollTrigger.create({
-      trigger: root,
-      start: 'top bottom',
-      end: 'bottom top',
-      onEnter:     () => tl.play(),
-      onLeave:     () => tl.pause(),
-      onEnterBack: () => tl.play(),
-      onLeaveBack: () => tl.pause()
+      trigger     : root,
+      start       : 'top bottom',
+      end         : 'bottom top',
+      onEnter     : () => tl.play(),
+      onLeave     : () => tl.pause(),
+      onEnterBack : () => tl.play(),
+      onLeaveBack : () => tl.pause()
     });
 
     document.addEventListener('visibilitychange', () =>
@@ -699,16 +609,10 @@ function initLogoWallCycle() {
   });
 }
 
-// Initialize Logo Wall Cycle
-document.addEventListener('DOMContentLoaded', () => {
-  initLogoWallCycle();
-});
-
 
 // ── Radial Marquee ───────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', () => {
-
+function initRadialMarquee() {
   const section = document.querySelector('[data-radial-marquee]');
   if (!section) return;
 
@@ -750,7 +654,6 @@ document.addEventListener('DOMContentLoaded', () => {
     items.forEach((item, i) => {
       const deg = stepDeg * i + offsetDeg;
       const rad = (deg * Math.PI) / 180;
-
       gsap.set(item, {
         x        : Math.sin(rad) * radius,
         y        : cy - Math.cos(rad) * radius,
@@ -785,26 +688,30 @@ document.addEventListener('DOMContentLoaded', () => {
     gsap.set(collection, { y: items[0].offsetHeight / 2 });
     positionCards(angle);
   });
-
-});
+}
 
 
 // ── Hover Cursor Marquee ─────────────────────────────────────
 
-window.addEventListener('load', () => {
+function initHoverCursorMarquee() {
   const links = document.querySelectorAll('.project_link');
+
   links.forEach(link => {
     const tag = link.querySelector('.project_tag');
     if (!tag) return;
     const spans = tag.querySelectorAll('span');
     if (spans.length < 2) return;
+
     const headingDefault = link.closest('.project_card').querySelector('.heading-default');
     const headingHover   = link.closest('.project_card').querySelector('.heading-hover');
     const headingClip    = link.closest('.project_card').querySelector('.heading-clip');
-    const splitDefault = new SplitText(headingDefault, { type: 'chars' });
-    const splitHover   = new SplitText(headingHover,   { type: 'chars' });
+
+    const splitDefault  = new SplitText(headingDefault, { type: 'chars' });
+    const splitHover    = new SplitText(headingHover,   { type: 'chars' });
     const headingHeight = headingClip.offsetHeight;
+
     gsap.set(splitHover.chars, { y: headingHeight });
+
     const marquee = gsap.to(spans, {
       xPercent : -100,
       repeat   : -1,
@@ -812,15 +719,19 @@ window.addEventListener('load', () => {
       ease     : 'none',
       paused   : true
     }).totalProgress(0.5);
+
     let currentX = 0;
     let currentY = 0;
     let targetX  = 0;
     let targetY  = 0;
     let rafId    = null;
+
     gsap.set(tag, { opacity: 0, scale: 0 });
+
     function lerp(start, end, factor) {
       return start + (end - start) * factor;
     }
+
     function loop() {
       const dx       = targetX - currentX;
       const rotation = dx * 0.08;
@@ -829,6 +740,7 @@ window.addEventListener('load', () => {
       gsap.set(tag, { x: currentX, y: currentY, rotation });
       rafId = requestAnimationFrame(loop);
     }
+
     link.addEventListener('mouseenter', (e) => {
       gsap.killTweensOf([tag, splitDefault.chars, splitHover.chars]);
       const rect = link.getBoundingClientRect();
@@ -843,6 +755,7 @@ window.addEventListener('load', () => {
       marquee.play();
       if (!rafId) rafId = requestAnimationFrame(loop);
     });
+
     link.addEventListener('mouseleave', () => {
       gsap.killTweensOf([tag, splitDefault.chars, splitHover.chars]);
       cancelAnimationFrame(rafId);
@@ -853,17 +766,32 @@ window.addEventListener('load', () => {
         rotation : 0,
         duration : 0.3,
         ease     : 'power3.in',
-        onComplete: () => {
-          marquee.pause();
-        }
+        onComplete: () => { marquee.pause(); }
       });
       gsap.to(splitDefault.chars, { y: 0,             duration: 0.4, ease: 'power2.inOut', stagger: 0.02 });
       gsap.to(splitHover.chars,   { y: headingHeight, duration: 0.4, ease: 'power2.inOut', stagger: 0.02 });
     });
+
     link.addEventListener('mousemove', (e) => {
       const rect = link.getBoundingClientRect();
       targetX    = e.clientX - rect.left;
       targetY    = e.clientY - rect.top;
     });
   });
+}
+
+
+// ── Init ─────────────────────────────────────────────────────
+
+window.addEventListener('load', () => {
+  initAccordionCSS();
+  initDraggableMarquee();
+  initPreviewFollower();
+  initNavbarColor();
+  initFooterParallax();
+  initFooterTekstAnimatie();
+  initDrawPathCursorEffect();
+  initLogoWallCycle();
+  initRadialMarquee();
+  initHoverCursorMarquee();
 });
