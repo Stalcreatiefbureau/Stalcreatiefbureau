@@ -3,6 +3,301 @@
 // ============================================================
 
 
+// ── Draggable marquee ─────────────────────────────────────
+
+function initDraggableMarquee() {
+  const ROTATION_PATTERN = [-3, 2, -4, 4];
+
+  const wrappers = document.querySelectorAll("[data-draggable-marquee-init]");
+  const getNumberAttr = (el, name, fallback) => {
+    const value = parseFloat(el.getAttribute(name));
+    return Number.isFinite(value) ? value : fallback;
+  };
+
+  wrappers.forEach((wrapper) => {
+    if (wrapper.getAttribute("data-draggable-marquee-init") === "initialized") return;
+    const collection = wrapper.querySelector("[data-draggable-marquee-collection]");
+    const list = wrapper.querySelector("[data-draggable-marquee-list]");
+    if (!collection || !list) return;
+
+    const duration    = getNumberAttr(wrapper, "data-duration", 20);
+    const multiplier  = getNumberAttr(wrapper, "data-multiplier", 40);
+    const sensitivity = getNumberAttr(wrapper, "data-sensitivity", 0.01);
+    const wrapperWidth = wrapper.getBoundingClientRect().width;
+    const listWidth    = list.scrollWidth || list.getBoundingClientRect().width;
+    if (!wrapperWidth || !listWidth) return;
+
+    const minRequiredWidth = wrapperWidth + listWidth + 2;
+    while (collection.scrollWidth < minRequiredWidth) {
+      const listClone = list.cloneNode(true);
+      listClone.setAttribute("data-draggable-marquee-clone", "");
+      listClone.setAttribute("aria-hidden", "true");
+      collection.appendChild(listClone);
+    }
+
+    const items = Array.from(collection.querySelectorAll('[data-draggable-marquee-item]'));
+    items.forEach(item => { item.style.willChange = 'transform'; });
+
+    function animateToRest() {
+      items.forEach(item => {
+        gsap.to(item, { rotation: 0, duration: 1.2, ease: 'elastic.out(1, 0.35)', overwrite: true });
+      });
+    }
+
+    const wrapX = gsap.utils.wrap(-listWidth, 0);
+    gsap.set(collection, { x: 0 });
+
+    const marqueeLoop = gsap.to(collection, {
+      x: -listWidth,
+      duration,
+      ease: "none",
+      repeat: -1,
+      onReverseComplete: () => marqueeLoop.progress(1),
+      modifiers: {
+        x: (x) => wrapX(parseFloat(x)) + "px"
+      },
+    });
+
+    const initialDirectionAttr = (wrapper.getAttribute("data-direction") || "left").toLowerCase();
+    const baseDirection = initialDirectionAttr === "right" ? -1 : 1;
+
+    function applyTimeScale(val) {
+      marqueeLoop.timeScale(val);
+    }
+    applyTimeScale(baseDirection);
+
+    let isDragging   = false;
+    let rawVelocity  = 0;
+    let smoothVelocity = 0;
+    let smoothRotation = 0; // ── aparte lerp voor rotatie
+    let lastMouseX   = 0;
+    let tickerAdded  = false;
+    let throwTween   = null;
+
+    function onTick() {
+      smoothVelocity += (rawVelocity - smoothVelocity) * 0.15;
+
+      const raw = gsap.utils.clamp(-multiplier * 40, multiplier * 40, smoothVelocity * sensitivity * -60);
+      applyTimeScale(raw || baseDirection);
+
+      // Rotatie target zonder clamp — lerp zorgt voor smoothness
+      const rotTarget = smoothVelocity * 0.03;
+      smoothRotation += (rotTarget - smoothRotation) * 0.1;
+
+      items.forEach((item, i) => {
+        const base = ROTATION_PATTERN[i % ROTATION_PATTERN.length];
+        gsap.set(item, { rotation: base * smoothRotation });
+      });
+    }
+
+    wrapper.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      lastMouseX = e.clientX;
+      rawVelocity = 0;
+      smoothVelocity = 0;
+      wrapper.style.cursor = 'grabbing';
+
+      if (throwTween) { throwTween.kill(); throwTween = null; }
+
+      if (!tickerAdded) {
+        gsap.ticker.add(onTick);
+        tickerAdded = true;
+      }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      rawVelocity = e.clientX - lastMouseX;
+      lastMouseX = e.clientX;
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (!isDragging) return;
+      isDragging = false;
+      wrapper.style.cursor = 'grab';
+
+      gsap.ticker.remove(onTick);
+      tickerAdded = false;
+
+      const throwTimeScale = gsap.utils.clamp(-multiplier * 40, multiplier * 40, smoothVelocity * sensitivity * -60);
+
+      // Rotatie doorslingeren vanuit smoothRotation
+      items.forEach((item, i) => {
+        const base = ROTATION_PATTERN[i % ROTATION_PATTERN.length];
+        const peak = base * smoothRotation * 1.4;
+        gsap.timeline()
+          .to(item, { rotation: peak, duration: 0.25, ease: 'power2.out' })
+          .to(item, { rotation: 0, duration: 1.4, ease: 'elastic.out(1, 0.4)' });
+      });
+
+      const proxy = { value: throwTimeScale };
+      throwTween = gsap.to(proxy, {
+        value: baseDirection,
+        duration: 2.0,
+        ease: "power4.out",
+        onUpdate: () => applyTimeScale(proxy.value),
+        onComplete: () => { throwTween = null; }
+      });
+
+      rawVelocity = 0;
+      smoothVelocity = 0;
+      smoothRotation = 0;
+    });
+
+    wrapper.style.cursor = 'grab';
+
+    ScrollTrigger.create({
+      trigger: wrapper,
+      start: "top bottom",
+      end: "bottom top",
+      onEnter: () => marqueeLoop.resume(),
+      onEnterBack: () => marqueeLoop.resume(),
+      onLeave: () => marqueeLoop.pause(),
+      onLeaveBack: () => marqueeLoop.pause()
+    });
+
+    wrapper.setAttribute("data-draggable-marquee-init", "initialized");
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  initDraggableMarquee();
+});
+
+
+// ── Portfolio list ─────────────────────────────────────
+
+function initPreviewFollower() {
+  // Find every follower wrap
+  const wrappers = document.querySelectorAll('[data-follower-wrap]');
+
+  wrappers.forEach(wrap => {
+    const collection = wrap.querySelector('[data-follower-collection]');
+    const items = wrap.querySelectorAll('[data-follower-item]');
+    const follower = wrap.querySelector('[data-follower-cursor]');
+    const followerInner = wrap.querySelector('[data-follower-cursor-inner]');
+
+    let prevIndex = null;
+    let firstEntry = true;
+
+    const offset = 100; // The animation distance in %
+    const duration = 0.5; // The animation duration of all visual transforms
+    const ease = 'power2.inOut';
+
+    // Initialize follower position
+    gsap.set(follower, { xPercent: -50, yPercent: -50 });
+
+    // Quick setters for x/y
+    const xTo = gsap.quickTo(follower, 'x', { duration: 0.6, ease: 'power3' });
+    const yTo = gsap.quickTo(follower, 'y', { duration: 0.6, ease: 'power3' });
+
+    // Move all followers on mousemove
+    window.addEventListener('mousemove', e => {
+      xTo(e.clientX);
+      yTo(e.clientY);
+    });
+
+    // Enter/leave per item within this wrap
+    items.forEach((item, index) => {
+      item.addEventListener('mouseenter', () => {
+        const forward = prevIndex === null || index > prevIndex;
+        prevIndex = index;
+
+        // animate out existing visuals
+        follower.querySelectorAll('[data-follower-visual]').forEach(el => {
+          gsap.killTweensOf(el);
+          gsap.to(el, {
+            yPercent: forward ? -offset : offset,
+            duration,
+            ease,
+            overwrite: 'auto',
+            onComplete: () => el.remove()
+          });
+        });
+
+        // clone & insert new visual
+        const visual = item.querySelector('[data-follower-visual]');
+        if (!visual) return;
+        const clone = visual.cloneNode(true);
+        followerInner.appendChild(clone);
+
+        // animate it in (unless it's the very first entry)
+        if (!firstEntry) {
+          gsap.fromTo(clone,
+            { yPercent: forward ? offset : -offset },
+            { yPercent: 0, duration, ease, overwrite: 'auto' }
+          );
+        } else {
+          firstEntry = false;
+        }
+      });
+
+      item.addEventListener('mouseleave', () => {
+        const el = follower.querySelector('[data-follower-visual]');
+        if (!el) return;
+        gsap.killTweensOf(el);
+        gsap.to(el, {
+          yPercent: -offset,
+          duration,
+          ease,
+          overwrite: 'auto',
+          onComplete: () => el.remove()
+        });
+      });
+    });
+
+    // If pointer leaves the collection, clear any visuals
+    collection.addEventListener('mouseleave', () => {
+      follower.querySelectorAll('[data-follower-visual]').forEach(el => {
+        gsap.killTweensOf(el);
+        gsap.delayedCall(duration, () => el.remove());
+      });
+      firstEntry = true;
+      prevIndex = null;
+    });
+  });
+}
+
+// Initialize Image Preview Cursor Follower
+document.addEventListener("DOMContentLoaded", () =>{
+  initPreviewFollower();
+})
+
+
+// ── Navbar color ─────────────────────────────────────
+
+(function () {
+  const nav = document.querySelector('[data-nav-component]');
+  if (!nav) return;
+
+  const NAV_HEIGHT = nav.offsetHeight;
+
+  // Observeer alle donkere secties
+  const darkSections = document.querySelectorAll('[data-nav-theme="dark"]');
+
+  let darkCount = 0;
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          darkCount++;
+        } else {
+          darkCount = Math.max(0, darkCount - 1);
+        }
+      });
+      nav.classList.toggle('nav--light', darkCount > 0);
+    },
+    {
+      rootMargin: `-${NAV_HEIGHT}px 0px -${window.innerHeight - NAV_HEIGHT - 1}px 0px`,
+      threshold: 0,
+    }
+  );
+
+  darkSections.forEach((el) => observer.observe(el));
+})();
+
+
 // ── Footer Parallax Animatie ─────────────────────────────────────
 
 gsap.registerPlugin(ScrollTrigger);
