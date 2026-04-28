@@ -276,29 +276,59 @@ function initNavbarColor() {
   const nav = document.querySelector('[data-nav-component]');
   if (!nav) return;
 
-  const NAV_HEIGHT  = nav.offsetHeight;
   const darkSections = document.querySelectorAll('[data-nav-theme="dark"]');
+  if (!darkSections.length) return;
 
-  let darkCount = 0;
+  // Set van dark sections die op dit moment de navbar-zone overlappen
+  const activeDarkSections = new Set();
 
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          darkCount++;
-        } else {
-          darkCount = Math.max(0, darkCount - 1);
-        }
-      });
-      nav.classList.toggle('nav--light', darkCount > 0);
-    },
-    {
-      rootMargin: `-${NAV_HEIGHT}px 0px -${window.innerHeight - NAV_HEIGHT - 1}px 0px`,
-      threshold: 0,
-    }
-  );
+  let observer;
 
-  darkSections.forEach((el) => observer.observe(el));
+  function buildObserver() {
+    // Eerdere observer opruimen bij rebuild (resize)
+    if (observer) observer.disconnect();
+    activeDarkSections.clear();
+
+    const navHeight = nav.offsetHeight;
+    const viewportHeight = window.innerHeight;
+
+    // Detectiezone: een strook van 2px direct onder de navbar
+    // (top margin = -navHeight, bottom margin = -(viewport - navHeight - 2))
+    observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            activeDarkSections.add(entry.target);
+          } else {
+            activeDarkSections.delete(entry.target);
+          }
+        });
+        nav.classList.toggle('nav--light', activeDarkSections.size > 0);
+      },
+      {
+        rootMargin: `-${navHeight}px 0px -${viewportHeight - navHeight - 2}px 0px`,
+        threshold: 0,
+      }
+    );
+
+    darkSections.forEach((el) => observer.observe(el));
+  }
+
+  buildObserver();
+
+  // Recalculeer bij resize (debounced)
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(buildObserver, 150);
+  });
+}
+
+// Wacht op DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initNavbarColor);
+} else {
+  initNavbarColor();
 }
 
 
