@@ -270,47 +270,63 @@ function initNavbarColor() {
   const nav = document.querySelector('[data-nav-component]');
   if (!nav) return;
 
-  const darkSections = document.querySelectorAll('[data-nav-theme="dark"]');
-  if (!darkSections.length) return;
+  // Basiskleur van de pagina (optioneel). data-nav-start="light" ergens op de
+  // pagina (body of page-wrapper) = navbar start licht, ook zonder dark-section.
+  const startEl = document.querySelector('[data-nav-start]');
+  const pageStartsLight =
+    (startEl?.getAttribute('data-nav-start') || '').toLowerCase() === 'light';
 
-  // Set van dark sections die op dit moment de navbar-zone overlappen
+  const darkSections = document.querySelectorAll('[data-nav-theme="dark"]');
   const activeDarkSections = new Set();
+
+  const applyColor = () => {
+    nav.classList.toggle('nav--light', activeDarkSections.size > 0 || pageStartsLight);
+  };
+
+  // Geen dark-sections: alleen de basiskleur zetten en stoppen
+  if (!darkSections.length) {
+    applyColor();
+    return;
+  }
 
   let observer;
 
-  function buildObserver() {
-    // Eerdere observer opruimen bij rebuild (resize)
-    if (observer) observer.disconnect();
+  // Synchrone meting bij load → voorkomt de kleurflits voordat de observer draait
+  const measureInitial = () => {
+    const navHeight = nav.offsetHeight;
     activeDarkSections.clear();
+    darkSections.forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (r.top <= navHeight + 2 && r.bottom >= navHeight) {
+        activeDarkSections.add(el);
+      }
+    });
+    applyColor();
+  };
 
+  function buildObserver() {
+    if (observer) observer.disconnect();
+    measureInitial(); // set + kleur meteen herijken
     const navHeight = nav.offsetHeight;
     const viewportHeight = window.innerHeight;
-
-    // Detectiezone: een strook van 2px direct onder de navbar
-    // (top margin = -navHeight, bottom margin = -(viewport - navHeight - 2))
     observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            activeDarkSections.add(entry.target);
-          } else {
-            activeDarkSections.delete(entry.target);
-          }
+          if (entry.isIntersecting) activeDarkSections.add(entry.target);
+          else activeDarkSections.delete(entry.target);
         });
-        nav.classList.toggle('nav--light', activeDarkSections.size > 0);
+        applyColor();
       },
       {
         rootMargin: `-${navHeight}px 0px -${viewportHeight - navHeight - 2}px 0px`,
         threshold: 0,
       }
     );
-
     darkSections.forEach((el) => observer.observe(el));
   }
 
   buildObserver();
 
-  // Recalculeer bij resize (debounced)
   let resizeTimer;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
@@ -318,7 +334,6 @@ function initNavbarColor() {
   });
 }
 
-// Wacht op DOM ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initNavbarColor);
 } else {
