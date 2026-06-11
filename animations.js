@@ -736,7 +736,6 @@ function initHoverCursorMarquee() {
   document.querySelectorAll('.project_link').forEach(link => {
     const tag = link.querySelector('.project_tag');
     if (!tag) return;
-
     const spans = tag.querySelectorAll('span');
     if (spans.length < 2) return;
 
@@ -748,42 +747,57 @@ function initHoverCursorMarquee() {
       paused   : true
     }).totalProgress(0.5);
 
-    let currentX = 0;
-    let currentY = 0;
-    let targetX  = 0;
-    let targetY  = 0;
-    let rafId    = null;
+    gsap.set(tag, { opacity: 0, scale: 0, force3D: true });
 
-    gsap.set(tag, { opacity: 0, scale: 0 });
+    // QuickSetters: directe property-writes zonder tween-overhead
+    const setX   = gsap.quickSetter(tag, 'x', 'px');
+    const setY   = gsap.quickSetter(tag, 'y', 'px');
+    const setRot = gsap.quickSetter(tag, 'rotation', 'deg');
 
-    const lerp = (start, end, factor) => start + (end - start) * factor;
+    let rect     = null;
+    let currentX = 0, currentY = 0;
+    let targetX  = 0, targetY  = 0;
 
-    function loop() {
-      const dx       = targetX - currentX;
-      const rotation = dx * 0.08;
-      currentX = lerp(currentX, targetX, 0.08);
-      currentY = lerp(currentY, targetY, 0.08);
-      gsap.set(tag, { x: currentX, y: currentY, rotation });
-      rafId = requestAnimationFrame(loop);
+    function tick() {
+      // deltaRatio maakt de lerp framerate-onafhankelijk (genormaliseerd op 60fps)
+      const factor = 1 - Math.pow(1 - 0.08, gsap.ticker.deltaRatio(60));
+      const dx     = targetX - currentX;
+
+      currentX += dx * factor;
+      currentY += (targetY - currentY) * factor;
+
+      setX(currentX);
+      setY(currentY);
+      setRot(dx * 0.08);
     }
+
+    const updateRect = () => { rect = link.getBoundingClientRect(); };
 
     link.addEventListener('mouseenter', (e) => {
       gsap.killTweensOf(tag);
-      const rect = link.getBoundingClientRect();
+      updateRect();
+
       currentX = e.clientX - rect.left;
       currentY = e.clientY - rect.top;
       targetX  = currentX;
       targetY  = currentY;
-      gsap.set(tag, { x: currentX, y: currentY });
+
+      setX(currentX);
+      setY(currentY);
+      setRot(0);
+
       gsap.to(tag, { opacity: 1, scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.5)' });
       marquee.play();
-      if (!rafId) rafId = requestAnimationFrame(loop);
+
+      gsap.ticker.add(tick);
+      window.addEventListener('scroll', updateRect, { passive: true });
     });
 
     link.addEventListener('mouseleave', () => {
       gsap.killTweensOf(tag);
-      cancelAnimationFrame(rafId);
-      rafId = null;
+      gsap.ticker.remove(tick);
+      window.removeEventListener('scroll', updateRect);
+
       gsap.to(tag, {
         opacity  : 0,
         scale    : 0,
@@ -795,10 +809,10 @@ function initHoverCursorMarquee() {
     });
 
     link.addEventListener('mousemove', (e) => {
-      const rect = link.getBoundingClientRect();
-      targetX    = e.clientX - rect.left;
-      targetY    = e.clientY - rect.top;
-    });
+      if (!rect) return;
+      targetX = e.clientX - rect.left;
+      targetY = e.clientY - rect.top;
+    }, { passive: true });
   });
 }
 
