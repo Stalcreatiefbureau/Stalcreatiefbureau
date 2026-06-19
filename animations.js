@@ -1054,6 +1054,402 @@ document.addEventListener("DOMContentLoaded", function () {
   initOverlappingSlider();
 });
 
+
+// ── CSS marquee ─────────────────────────────────────
+
+function initCSSMarquee() {
+  const pixelsPerSecond = 75; // Set the marquee speed (pixels per second)
+  const marquees = document.querySelectorAll('[data-css-marquee]');
+  
+  // Duplicate each [data-css-marquee-list] element inside its container
+  marquees.forEach(marquee => {
+    marquee.querySelectorAll('[data-css-marquee-list]').forEach(list => {
+      const duplicate = list.cloneNode(true);
+      marquee.appendChild(duplicate);
+    });
+  });
+
+  // Create an IntersectionObserver to check if the marquee container is in view
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      entry.target.querySelectorAll('[data-css-marquee-list]').forEach(list => 
+        list.style.animationPlayState = entry.isIntersecting ? 'running' : 'paused'
+      );
+    });
+  }, { threshold: 0 });
+  
+  // Calculate the width and set the animation duration accordingly
+  marquees.forEach(marquee => {
+    marquee.querySelectorAll('[data-css-marquee-list]').forEach(list => {
+      list.style.animationDuration = (list.offsetWidth / pixelsPerSecond) + 's';
+      list.style.animationPlayState = 'paused';
+    });
+    observer.observe(marquee);
+  });
+}
+
+// Initialize CSS Marquee
+document.addEventListener('DOMContentLoaded', function() {
+  initCSSMarquee();
+});
+
+
+// ── Load Reveal ─────────────────────────────────────────────────────
+
+function initLoadReveal(scope = document) {
+  const targets = scope.querySelectorAll('[data-load-reveal]');
+  if (!targets.length) return;
+
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  document.fonts.ready.then(() => {
+    targets.forEach((el) => {
+      const type = el.dataset.loadReveal || 'lines';
+      const delay = parseFloat(el.dataset.loadDelay) || 0;
+
+      if (reducedMotion) {
+        gsap.set(el, { visibility: 'visible' });
+        return;
+      }
+
+      // ── Tekst per regel ──
+      if (type === 'lines') {
+        SplitText.create(el, {
+          type: 'lines',
+          mask: 'lines',
+          autoSplit: true,
+          onSplit(self) {
+            gsap.set(el, { visibility: 'visible' });
+            return gsap.from(self.lines, {
+              yPercent: 110,
+              duration: 0.4,
+              ease: 'textHoverease',
+              stagger: 0.08,
+              delay,
+            });
+          },
+        });
+        return;
+      }
+
+      // ── Heel element (div, image, button) ──
+      if (type === 'element') {
+        gsap.set(el, { visibility: 'visible' });
+        gsap.from(el, {
+          y: 40,
+          autoAlpha: 0,
+          duration: 0.4,
+          ease: 'textHoverEase',
+          delay,
+        });
+        return;
+      }
+
+      // ── Children van een wrapper gestaggerd ──
+      if (type === 'group') {
+        const children = el.children;
+        gsap.set(el, { visibility: 'visible' });
+        gsap.from(children, {
+          y: 40,
+          autoAlpha: 0,
+          duration: 0.4,
+          ease: 'textHoverEase',
+          stagger: 0.1,
+          delay,
+        });
+        return;
+      }
+    });
+  });
+}
+
+initLoadReveal();
+
+
+// ── Text hover ────────────────────────────────────────────────────
+
+function initTextHover() {
+  document.querySelectorAll('[data-text-hover]').forEach(el => {
+    if (el.dataset.textHoverInit) return;
+    el.dataset.textHoverInit = 'true';
+
+    const duration = parseFloat(el.getAttribute('data-text-hover-duration')) || 0.4;
+    const stagger  = parseFloat(el.getAttribute('data-text-hover-stagger'))  || 0.02;
+    const type     = el.getAttribute('data-text-hover-type') || 'chars';
+    const bleed    = el.getAttribute('data-text-hover-bleed') || '0.11em';
+    const outScale = parseFloat(el.getAttribute('data-text-hover-out-scale')) || 1.5;
+    const trigger  = el.closest('[data-text-hover-trigger]') || el;
+
+    const restHeight = el.offsetHeight;
+
+    const original = document.createElement('div');
+    original.classList.add('text-hover__original');
+    while (el.firstChild) original.appendChild(el.firstChild);
+
+    const clone = original.cloneNode(true);
+    clone.classList.add('text-hover__clone');
+    clone.setAttribute('aria-hidden', 'true');
+
+    el.appendChild(original);
+    el.appendChild(clone);
+
+    gsap.set(el, {
+      position : 'relative',
+      height   : restHeight,
+      clipPath : `inset(-${bleed} 0)`
+    });
+
+    const splitOriginal = new SplitText(original, { type });
+    const splitClone    = new SplitText(clone,    { type });
+
+    const dist = () => clone.offsetTop - original.offsetTop;
+
+    const tl = gsap.timeline({
+      paused: true,
+      defaults: { duration, ease: 'textHoverEase' }
+    });
+    tl.to(splitOriginal[type], { y: () => -dist(), stagger }, 0)
+      .to(splitClone[type],    { y: () => -dist(), stagger }, 0);
+
+    trigger.addEventListener('mouseenter', () => tl.timeScale(1).play());
+    trigger.addEventListener('mouseleave', () => tl.timeScale(outScale).reverse());
+
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (tl.progress() !== 0) return;
+        gsap.set(clone, { display: 'none' });
+        gsap.set(el, { height: 'auto' });
+        const h = el.offsetHeight;
+        gsap.set(clone, { clearProps: 'display' });
+        gsap.set(el, { height: h });
+        tl.invalidate();
+      }, 200);
+    });
+  });
+}
+
+gsap.registerPlugin(CustomEase);
+CustomEase.create("textHoverEase", "0.625, 0.05, 0, 1");
+
+document.fonts.ready.then(() => {
+  initTextHover();
+});
+
+
+// ── Init ─────────────────────────────────────────────────────
+
+function initScalingHamburgerNavigation() {
+  // Toggle Navigation
+  document.querySelectorAll('[data-navigation-toggle="toggle"]').forEach(toggleBtn => {
+    toggleBtn.addEventListener('click', () => {
+      const navStatusEl = document.querySelector('[data-navigation-status]');
+      if (!navStatusEl) return;
+      if (navStatusEl.getAttribute('data-navigation-status') === 'not-active') {
+        navStatusEl.setAttribute('data-navigation-status', 'active');
+        // If you use Lenis you can 'stop' Lenis here: Example Lenis.stop();
+      } else {
+        navStatusEl.setAttribute('data-navigation-status', 'not-active');
+        // If you use Lenis you can 'start' Lenis here: Example Lenis.start();
+      }
+    });
+  });
+
+  // Close Navigation
+  document.querySelectorAll('[data-navigation-toggle="close"]').forEach(closeBtn => {
+    closeBtn.addEventListener('click', () => {
+      const navStatusEl = document.querySelector('[data-navigation-status]');
+      if (!navStatusEl) return;
+      navStatusEl.setAttribute('data-navigation-status', 'not-active');
+      // If you use Lenis you can 'start' Lenis here: Example Lenis.start();
+    });
+  });
+
+  // Key ESC - Close Navigation
+  document.addEventListener('keydown', e => {
+    if (e.keyCode === 27) {
+      const navStatusEl = document.querySelector('[data-navigation-status]');
+      if (!navStatusEl) return;
+      if (navStatusEl.getAttribute('data-navigation-status') === 'active') {
+        navStatusEl.setAttribute('data-navigation-status', 'not-active');
+       // If you use Lenis you can 'start' Lenis here: Example Lenis.start();
+      }
+    }
+  });
+}
+
+// Initialize Scaling Hamburger Navigation
+document.addEventListener('DOMContentLoaded', function() {
+  initScalingHamburgerNavigation();
+});
+
+
+// ── Momentum based hover ─────────────────────────────────────────────────────
+
+function initMomentumBasedHover() {
+  if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+
+  const xyMultiplier       = 30;
+  const rotationMultiplier = 20;
+  const inertiaResistance  = 200;
+
+  const clampXY  = gsap.utils.clamp(-1080, 1080);
+  const clampRot = gsap.utils.clamp(-60, 60);
+
+  document.querySelectorAll('[data-momentum-hover-init]').forEach(root => {
+    let prevX = 0, prevY = 0;
+    let velX  = 0, velY  = 0;
+    let rafId = null;
+
+    root.addEventListener('mousemove', e => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        velX = e.clientX - prevX;
+        velY = e.clientY - prevY;
+        prevX = e.clientX;
+        prevY = e.clientY;
+        rafId = null;
+      });
+    });
+
+    root.querySelectorAll('[data-momentum-hover-element]').forEach(el => {
+      const target = el.querySelector('[data-momentum-hover-target]');
+      if (!target) return;
+
+      // Originele positie eenmalig opslaan na load
+      const originX        = gsap.getProperty(target, 'x');
+      const originY        = gsap.getProperty(target, 'y');
+      const originRotation = gsap.getProperty(target, 'rotation');
+
+      el.addEventListener('mouseenter', e => {
+        const { left, top, width, height } = target.getBoundingClientRect();
+        const centerX = left + width / 2;
+        const centerY = top + height / 2;
+        const offsetX = e.clientX - centerX;
+        const offsetY = e.clientY - centerY;
+
+        const rawTorque    = offsetX * velY - offsetY * velX;
+        const leverDist    = Math.hypot(offsetX, offsetY) || 1;
+        const angularForce = rawTorque / leverDist;
+
+        const velocityX        = clampXY(velX * xyMultiplier);
+        const velocityY        = clampXY(velY * xyMultiplier);
+        const rotationVelocity = clampRot(angularForce * rotationMultiplier);
+
+        gsap.to(target, {
+          inertia: {
+            x        : { velocity: velocityX,        end: originX },
+            y        : { velocity: velocityY,        end: originY },
+            rotation : { velocity: rotationVelocity, end: originRotation },
+            resistance: inertiaResistance
+          },
+          onComplete: () => {
+            gsap.set(target, { x: originX, y: originY, rotation: originRotation });
+          }
+        });
+      });
+    });
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initMomentumBasedHover();
+});
+
+
+// ── CTA Load animation ─────────────────────────────────────────────────────
+
+function initCtaAnimation() {
+  const section = document.querySelector('.section_cta');
+  if (!section) return;
+
+  const images      = Array.from(section.querySelectorAll('.cta_image'));
+  const tag         = section.querySelector('.text-label');
+  const heading     = section.querySelector('.text-align-center');
+  const buttonGroup = section.querySelector('.button-group');
+
+  if (images.length < 3) return;
+
+  const left   = images[0];
+  const middle = images[1];
+  const right  = images[2];
+
+  // Eindposities op basis van Webflow transforms
+  // left:  x: 2rem, rotation: -10deg
+  // middle: x: 0, rotation: 0
+  // right: x: -2rem, rotation: 10deg
+  const remToPx = parseFloat(getComputedStyle(document.documentElement).fontSize);
+
+  gsap.set(middle, { y: '+=60', autoAlpha: 0 });
+  gsap.set(left,   { x: '+=80', y: '+=40', autoAlpha: 0 });
+  gsap.set(right,  { x: '-=80', y: '+=40', autoAlpha: 0 });
+  gsap.set(tag,         { y: 16, autoAlpha: 0 });
+  gsap.set(buttonGroup, { y: 16, autoAlpha: 0 });
+
+  const split = new SplitText(heading, { type: 'lines' });
+  gsap.set(split.lines, { y: 40, autoAlpha: 0 });
+
+  const tl = gsap.timeline({
+    scrollTrigger: {
+      trigger      : section,
+      start        : 'top 75%',
+      toggleActions: 'play none none none',
+    }
+  });
+
+  tl.to(middle, {
+    y        : 0,
+    autoAlpha: 1,
+    duration : 0.4,
+    ease     : 'power3.out',
+  })
+
+  .to(left, {
+    x        : 2 * remToPx,   // 2rem naar rechts
+    y        : 0,
+    rotation : -10,
+    autoAlpha: 1,
+    duration : 0.35,
+    ease     : 'power3.out',
+  }, '-=0.35')
+
+  .to(right, {
+    x        : -2 * remToPx,  // 2rem naar links
+    y        : 0,
+    rotation : 10,
+    autoAlpha: 1,
+    duration : 0.35,
+    ease     : 'power3.out',
+  }, '<')
+
+  .to(tag, {
+    y        : 0,
+    autoAlpha: 1,
+    duration : 0.25,
+    ease     : 'power2.out',
+  }, '-=0.25')
+
+  .to(split.lines, {
+    y        : 0,
+    autoAlpha: 1,
+    duration : 0.35,
+    ease     : 'power3.out',
+    stagger  : 0.06,
+  }, '-=0.25')
+
+  .to(buttonGroup, {
+    y        : 0,
+    autoAlpha: 1,
+    duration : 0.25,
+    ease     : 'power2.out',
+  }, '-=0.25');
+}
+
+window.addEventListener('load', () => {
+  initCtaAnimation();
+});
+
 // ── Init ─────────────────────────────────────────────────────
 
 window.addEventListener('load', () => {
@@ -1068,4 +1464,10 @@ window.addEventListener('load', () => {
   initRadialMarquee();
   initHoverCursorMarquee();
   initOverlappingSlider();
+  initCSSMarquee();
+  initLoadReveal();
+  initTextHover();
+  initScalingHamburgerNavigation();
+  initMomentumBasedHover();
+  initCtaAnimation();
 });
