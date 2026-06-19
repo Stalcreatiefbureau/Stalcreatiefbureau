@@ -275,6 +275,77 @@ function initPreviewFollower() {
 }
 
 
+// ── Navbar color ─────────────────────────────────────
+
+function initNavbarColor() {
+  const nav = document.querySelector('[data-nav-component]');
+  if (!nav) return;
+
+  // Basiskleur van de pagina (optioneel). data-nav-start="light" ergens op de
+  // pagina (body of page-wrapper) = navbar start licht, ook zonder dark-section.
+  const startEl = document.querySelector('[data-nav-start]');
+  const pageStartsLight =
+    (startEl?.getAttribute('data-nav-start') || '').toLowerCase() === 'light';
+
+  const darkSections = document.querySelectorAll('[data-nav-theme="dark"]');
+  const activeDarkSections = new Set();
+
+  const applyColor = () => {
+    nav.classList.toggle('nav--light', activeDarkSections.size > 0 || pageStartsLight);
+  };
+
+  // Geen dark-sections: alleen de basiskleur zetten en stoppen
+  if (!darkSections.length) {
+    applyColor();
+    return;
+  }
+
+  let observer;
+
+  // Synchrone meting bij load → voorkomt de kleurflits voordat de observer draait
+  const measureInitial = () => {
+    const navHeight = nav.offsetHeight;
+    activeDarkSections.clear();
+    darkSections.forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (r.top <= navHeight + 2 && r.bottom >= navHeight) {
+        activeDarkSections.add(el);
+      }
+    });
+    applyColor();
+  };
+
+  function buildObserver() {
+    if (observer) observer.disconnect();
+    measureInitial(); // set + kleur meteen herijken
+    const navHeight = nav.offsetHeight;
+    const viewportHeight = window.innerHeight;
+    observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) activeDarkSections.add(entry.target);
+          else activeDarkSections.delete(entry.target);
+        });
+        applyColor();
+      },
+      {
+        rootMargin: `-${navHeight}px 0px -${viewportHeight - navHeight - 2}px 0px`,
+        threshold: 0,
+      }
+    );
+    darkSections.forEach((el) => observer.observe(el));
+  }
+
+  buildObserver();
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(buildObserver, 150);
+  });
+}
+
+
 // ── Footer Parallax Animatie ─────────────────────────────────────
 
 function initFooterParallax() {
@@ -1365,20 +1436,37 @@ function initCtaAnimation() {
 
 function initNavMenuStagger() {
   const navStatusEl = document.querySelector('[data-navigation-status]');
-  if (!navStatusEl) return;
+  if (!navStatusEl) {
+    console.warn('[nav-stagger] Geen [data-navigation-status] gevonden.');
+    return;
+  }
 
-  // Wrapper rondom de menu-links. De directe children worden gestaggerd,
-  // net als de 'group' load reveal. Zet data-nav-menu op de links-wrapper
-  // in Webflow. Voor een strak masked effect: geef elk child (of een inner
-  // wrapper) overflow: hidden in de designer.
-  const menu = navStatusEl.querySelector('[data-nav-menu]');
-  if (!menu || !menu.children.length) return;
+  // Wrapper rondom de menu-links. Eerst binnen de nav zoeken, anders
+  // paginabreed (voor het geval de wrapper buiten [data-navigation-status]
+  // staat). Zet data-nav-menu op de wrapper met je menu-links in Webflow.
+  // Voor een strak masked effect: geef elk child (of een inner wrapper)
+  // overflow: hidden in de designer.
+  const menu =
+    navStatusEl.querySelector('[data-nav-menu]') ||
+    document.querySelector('[data-nav-menu]');
 
-  const links = menu.children;
-  const openDelay = 0.4;
+  if (!menu) {
+    console.warn('[nav-stagger] Geen [data-nav-menu] gevonden — zet dit attribuut op de wrapper met je menu-links.');
+    return;
+  }
+
+  const links = Array.from(menu.children);
+  if (!links.length) {
+    console.warn('[nav-stagger] [data-nav-menu] heeft geen children om te animeren.');
+    return;
+  }
 
   // Reduced motion: geen animatie, links gewoon zichtbaar laten.
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  // Kleine vertraging vóór de stagger, zodat het menu eerst opent en de
+  // links daarna pas instaggeren. Pas openDelay aan op je menu-open-duur.
+  const openDelay = 0.25;
 
   // Eén reversibele timeline: open = play (reveal), dicht = reverse (terug).
   // immediateRender van .from() zet de links meteen in hun verborgen
