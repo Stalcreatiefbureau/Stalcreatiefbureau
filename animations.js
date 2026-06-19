@@ -3,17 +3,11 @@
 // ============================================================
 
 
-// ── Plugin- & ease-registratie (één keer, vóór alle inits) ──
-
-gsap.registerPlugin(
-  ...[
-    window.ScrollTrigger,
-    window.Draggable,
-    window.InertiaPlugin,
-    window.SplitText,
-    window.CustomEase,
-  ].filter(Boolean)
-);
+// ── Custom ease (één keer, vóór alle inits) ──
+// Plugins (ScrollTrigger, Draggable, InertiaPlugin, SplitText, CustomEase)
+// registreren zichzelf al via de losse <script>-tags in Webflow, dus daar is
+// geen gsap.registerPlugin() voor nodig. Deze regel maakt de named ease aan
+// die in de reveals en text-hover gebruikt wordt — die moet wél blijven.
 
 CustomEase.create('textHoverEase', '0.625, 0.05, 0, 1');
 
