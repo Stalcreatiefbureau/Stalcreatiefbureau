@@ -1432,6 +1432,54 @@ function initCtaAnimation() {
 }
 
 
+// ── Nav menu stagger (open / dicht) ─────────────────────────
+
+function initNavMenuStagger() {
+  const navStatusEl = document.querySelector('[data-navigation-status]');
+  if (!navStatusEl) return;
+
+  // Wrapper rondom de menu-links. De directe children worden gestaggerd,
+  // net als de 'group' load reveal. Zet data-nav-menu op de links-wrapper
+  // in Webflow. Voor een strak masked effect: geef elk child (of een inner
+  // wrapper) overflow: hidden in de designer.
+  const menu = navStatusEl.querySelector('[data-nav-menu]');
+  if (!menu || !menu.children.length) return;
+
+  const links = menu.children;
+
+  // Reduced motion: geen animatie, links gewoon zichtbaar laten.
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  // Eén reversibele timeline: open = play (reveal), dicht = reverse (terug).
+  // immediateRender van .from() zet de links meteen in hun verborgen
+  // beginstaat — geen probleem, want het menu is dan dicht.
+  const tl = gsap.timeline({ paused: true });
+  tl.from(links, {
+    yPercent : 110,
+    autoAlpha: 0,
+    duration : 0.5,
+    ease     : 'textHoverEase',
+    stagger  : 0.06,
+  });
+
+  // Observer reageert op élke statuswissel: hamburger-toggle, close-knop én Esc.
+  const observer = new MutationObserver(() => {
+    const isActive =
+      navStatusEl.getAttribute('data-navigation-status') === 'active';
+    if (isActive) {
+      tl.timeScale(1).play();      // openen → instaggeren
+    } else {
+      tl.timeScale(1.4).reverse(); // sluiten → iets sneller weer terug
+    }
+  });
+
+  observer.observe(navStatusEl, {
+    attributes     : true,
+    attributeFilter: ['data-navigation-status'],
+  });
+}
+
+
 // ── Init ─────────────────────────────────────────────────────
 //
 // Eén entry-point. We wachten eerst tot de DOM klaar is en daarna tot de
@@ -1443,6 +1491,7 @@ function initAnimations() {
   // Interactie + niet-tekst-afhankelijke visuals
   initAccordionCSS();
   initScalingHamburgerNavigation();
+  initNavMenuStagger();
   initNavbarColor();
   initDrawPathCursorEffect();
   initMomentumBasedHover();
