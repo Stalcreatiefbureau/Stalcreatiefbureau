@@ -589,8 +589,18 @@ function initRadialMarquee() {
   const section = document.querySelector('[data-radial-marquee]');
   if (!section) return;
 
-  const speed  = parseFloat(section.dataset.speed  ?? 30);
   const repeat = parseInt(section.dataset.repeat   ?? 2);
+
+  // Snelheid = seconden per volledige rotatie (lager = sneller). Optioneel
+  // data-speed-mobile voor een snellere draai op mobiel (≤767px). Zonder
+  // data-speed-mobile geldt overal gewoon data-speed.
+  function getSpeed() {
+    const mobileSpeed = parseFloat(section.dataset.speedMobile);
+    if (mobileSpeed && window.matchMedia('(max-width: 767px)').matches) {
+      return mobileSpeed;
+    }
+    return parseFloat(section.dataset.speed ?? 30);
+  }
 
   function getRadius() {
     const vw       = window.innerWidth;
@@ -617,7 +627,7 @@ function initRadialMarquee() {
   const collection = section.querySelector('.reviews_collection');
 
   let angle      = 0;
-  let degsPerSec = 360 / speed;
+  let degsPerSec = 360 / getSpeed();
 
   function positionCards(offsetDeg) {
     const radius  = getRadius();
@@ -658,6 +668,7 @@ function initRadialMarquee() {
   });
 
   window.addEventListener('resize', () => {
+    degsPerSec = 360 / getSpeed();           // breakpoint kan gewisseld zijn
     gsap.set(collection, { y: items[0].offsetHeight / 2 });
     positionCards(angle);
   });
