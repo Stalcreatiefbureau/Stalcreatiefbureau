@@ -3,6 +3,21 @@
 // ============================================================
 
 
+// ── Plugin- & ease-registratie (één keer, vóór alle inits) ──
+
+gsap.registerPlugin(
+  ...[
+    window.ScrollTrigger,
+    window.Draggable,
+    window.InertiaPlugin,
+    window.SplitText,
+    window.CustomEase,
+  ].filter(Boolean)
+);
+
+CustomEase.create('textHoverEase', '0.625, 0.05, 0, 1');
+
+
 // ── Accordions ─────────────────────────────────────
 
 function initAccordionCSS() {
@@ -63,12 +78,6 @@ function initDraggableMarquee() {
 
     const items = Array.from(collection.querySelectorAll('[data-draggable-marquee-item]'));
     items.forEach(item => { item.style.willChange = 'transform'; });
-
-    function animateToRest() {
-      items.forEach(item => {
-        gsap.to(item, { rotation: 0, duration: 1.2, ease: 'elastic.out(1, 0.35)', overwrite: true });
-      });
-    }
 
     const wrapX = gsap.utils.wrap(-listWidth, 0);
     gsap.set(collection, { x: 0 });
@@ -332,12 +341,6 @@ function initNavbarColor() {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(buildObserver, 150);
   });
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initNavbarColor);
-} else {
-  initNavbarColor();
 }
 
 
@@ -660,7 +663,7 @@ function initRadialMarquee() {
 
   function getRadius() {
     const vw       = window.innerWidth;
-    const radiusLg = parseFloat(section.dataset.radiusLg ?? null);
+    const radiusLg = parseFloat(section.dataset.radiusLg);
     if (radiusLg && vw >= 1600) return radiusLg;
     return parseFloat(section.dataset.radius ?? 2000);
   }
@@ -849,7 +852,7 @@ function initOverlappingSlider() {
       console.warn("OverlappingSlider: missing required structure. Check Osmo Vault documentation please.");
       return;
     }
-    
+
     wrap.style.touchAction = 'none';
     wrap.style.userSelect = 'none';
 
@@ -913,14 +916,12 @@ function initOverlappingSlider() {
       bounds: { minX: -maxDrag, maxX: 0 }, // will be updated after recalc
       inertia,
       maxDuration: 1,
-      snap: true
-        ? (raw) => {
-            // raw is the x value
-            const d = clamp(-raw);
-            const idx = spacing > 0 ? Math.round(d / spacing) : 0;
-            return -idx * spacing;
-          }
-        : false,
+      snap: (raw) => {
+        // raw is the x value
+        const d = clamp(-raw);
+        const idx = spacing > 0 ? Math.round(d / spacing) : 0;
+        return -idx * spacing;
+      },
       onDrag() {
         dragX = clamp(-this.x);
         update();
@@ -944,7 +945,7 @@ function initOverlappingSlider() {
       recalc();
     });
     ro.observe(init);
-    
+
     // keyboard navigation (arrow left/right)
     let active = false;
     let currentIndex = 0;
@@ -978,9 +979,9 @@ function initOverlappingSlider() {
     function goToSlide(idx) {
       idx = Math.max(0, Math.min(idx, slides.length - 1));
       currentIndex = idx;
-    
+
       const targetX = idx * spacing;
-    
+
       gsap.to({ value: dragX }, {
         value: targetX,
         duration: 0.6,
@@ -991,7 +992,7 @@ function initOverlappingSlider() {
           update(); // animate overlap transforms properly
         }
       });
-    
+
       updateButtons();
       wrap.setAttribute("aria-label", `Slide ${idx + 1} of ${slides.length}`);
     }
@@ -1004,7 +1005,7 @@ function initOverlappingSlider() {
     });
 
     io.observe(init);
-    
+
     // Aria labels for accessibility
     wrap.setAttribute("role", "region");
     wrap.setAttribute("aria-roledescription", "carousel");
@@ -1049,18 +1050,13 @@ function initOverlappingSlider() {
   }
 }
 
-// Initialize Overlapping Slider
-document.addEventListener("DOMContentLoaded", function () {
-  initOverlappingSlider();
-});
-
 
 // ── CSS marquee ─────────────────────────────────────
 
 function initCSSMarquee() {
   const pixelsPerSecond = 75; // Set the marquee speed (pixels per second)
   const marquees = document.querySelectorAll('[data-css-marquee]');
-  
+
   // Duplicate each [data-css-marquee-list] element inside its container
   marquees.forEach(marquee => {
     marquee.querySelectorAll('[data-css-marquee-list]').forEach(list => {
@@ -1072,12 +1068,12 @@ function initCSSMarquee() {
   // Create an IntersectionObserver to check if the marquee container is in view
   const observer = new IntersectionObserver(entries => {
     entries.forEach(entry => {
-      entry.target.querySelectorAll('[data-css-marquee-list]').forEach(list => 
+      entry.target.querySelectorAll('[data-css-marquee-list]').forEach(list =>
         list.style.animationPlayState = entry.isIntersecting ? 'running' : 'paused'
       );
     });
   }, { threshold: 0 });
-  
+
   // Calculate the width and set the animation duration accordingly
   marquees.forEach(marquee => {
     marquee.querySelectorAll('[data-css-marquee-list]').forEach(list => {
@@ -1087,11 +1083,6 @@ function initCSSMarquee() {
     observer.observe(marquee);
   });
 }
-
-// Initialize CSS Marquee
-document.addEventListener('DOMContentLoaded', function() {
-  initCSSMarquee();
-});
 
 
 // ── Load Reveal ─────────────────────────────────────────────────────
@@ -1123,7 +1114,7 @@ function initLoadReveal(scope = document) {
             return gsap.from(self.lines, {
               yPercent: 110,
               duration: 0.4,
-              ease: 'textHoverease',
+              ease: 'textHoverEase',
               stagger: 0.08,
               delay,
             });
@@ -1162,8 +1153,6 @@ function initLoadReveal(scope = document) {
     });
   });
 }
-
-initLoadReveal();
 
 
 // ── Text hover ────────────────────────────────────────────────────
@@ -1230,15 +1219,8 @@ function initTextHover() {
   });
 }
 
-gsap.registerPlugin(CustomEase);
-CustomEase.create("textHoverEase", "0.625, 0.05, 0, 1");
 
-document.fonts.ready.then(() => {
-  initTextHover();
-});
-
-
-// ── Init ─────────────────────────────────────────────────────
+// ── Scaling Hamburger Navigation ─────────────────────────────
 
 function initScalingHamburgerNavigation() {
   // Toggle Navigation
@@ -1278,11 +1260,6 @@ function initScalingHamburgerNavigation() {
     }
   });
 }
-
-// Initialize Scaling Hamburger Navigation
-document.addEventListener('DOMContentLoaded', function() {
-  initScalingHamburgerNavigation();
-});
 
 
 // ── Momentum based hover ─────────────────────────────────────────────────────
@@ -1352,10 +1329,6 @@ function initMomentumBasedHover() {
     });
   });
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-  initMomentumBasedHover();
-});
 
 
 // ── CTA Load animation ─────────────────────────────────────────────────────
@@ -1446,28 +1419,43 @@ function initCtaAnimation() {
   }, '-=0.25');
 }
 
-window.addEventListener('load', () => {
-  initCtaAnimation();
-});
 
 // ── Init ─────────────────────────────────────────────────────
+//
+// Eén entry-point. We wachten eerst tot de DOM klaar is en daarna tot de
+// fonts geladen zijn (document.fonts.ready) — niet tot 'load', zodat reveals
+// niet hoeven te wachten op de Vimeo-video, terwijl tekstmetingen toch
+// kloppen. Elke functie wordt hier exact één keer aangeroepen.
 
-window.addEventListener('load', () => {
+function initAnimations() {
+  // Interactie + niet-tekst-afhankelijke visuals
   initAccordionCSS();
-  initDraggableMarquee();
-  initPreviewFollower();
+  initScalingHamburgerNavigation();
   initNavbarColor();
-  initFooterParallax();
-  initFooterTekstAnimatie();
   initDrawPathCursorEffect();
-  initLogoWallCycle();
-  initRadialMarquee();
+  initMomentumBasedHover();
+  initPreviewFollower();
   initHoverCursorMarquee();
-  initOverlappingSlider();
+  initDraggableMarquee();
+  initRadialMarquee();
+  initLogoWallCycle();
   initCSSMarquee();
+  initOverlappingSlider();
+  initFooterParallax();
+
+  // Tekst- / meet-afhankelijke animaties
+  initFooterTekstAnimatie();
   initLoadReveal();
   initTextHover();
-  initScalingHamburgerNavigation();
-  initMomentumBasedHover();
   initCtaAnimation();
-});
+}
+
+function bootAnimations() {
+  document.fonts.ready.then(initAnimations);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootAnimations);
+} else {
+  bootAnimations();
+}
