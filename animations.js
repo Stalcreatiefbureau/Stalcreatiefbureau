@@ -12,6 +12,13 @@
 CustomEase.create('textHoverEase', '0.625, 0.05, 0, 1');
 
 
+// ── Hover-capability check ─────────────────────────────────────
+// True alleen op devices met een echte muis/trackpad. Touch-devices vallen
+// hierbuiten, zodat de hover-animaties daar niet opgezet worden.
+
+const canHover = () => window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+
 // ── Accordions ─────────────────────────────────────
 
 function initAccordionCSS() {
@@ -191,6 +198,7 @@ function initDraggableMarquee() {
 // ── Portfolio list ─────────────────────────────────────
 
 function initPreviewFollower() {
+  if (!canHover()) return;
   const wrappers = document.querySelectorAll('[data-follower-wrap]');
   wrappers.forEach(wrap => {
     const collection    = wrap.querySelector('[data-follower-collection]');
@@ -730,6 +738,15 @@ function initRadialMarquee() {
 // ── Hover Cursor Marquee ─────────────────────────────────────
 
 function initHoverCursorMarquee() {
+  // Op touch: geen hover-interactie opzetten én de tags verborgen houden,
+  // zodat de cursor-labels niet permanent zichtbaar blijven.
+  if (!canHover()) {
+    document.querySelectorAll('.project_link .project_tag').forEach(tag => {
+      gsap.set(tag, { opacity: 0, scale: 0 });
+    });
+    return;
+  }
+
   document.querySelectorAll('.project_link').forEach(link => {
     const tag = link.querySelector('.project_tag');
     if (!tag) return;
@@ -1152,6 +1169,7 @@ function initLoadReveal(scope = document) {
 // ── Text hover ────────────────────────────────────────────────────
 
 function initTextHover() {
+  if (!canHover()) return;
   document.querySelectorAll('[data-text-hover]').forEach(el => {
     if (el.dataset.textHoverInit) return;
     el.dataset.textHoverInit = 'true';
@@ -1259,7 +1277,7 @@ function initScalingHamburgerNavigation() {
 // ── Momentum based hover ─────────────────────────────────────────────────────
 
 function initMomentumBasedHover() {
-  if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+  if (!canHover()) return;
 
   const xyMultiplier       = 30;
   const rotationMultiplier = 20;
