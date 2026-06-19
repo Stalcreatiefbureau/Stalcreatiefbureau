@@ -1394,7 +1394,7 @@ function initNavMenuStagger() {
 
   // Kleine vertraging vóór de stagger, zodat het menu eerst opent en de
   // letters daarna pas instaggeren. Pas openDelay aan op je menu-open-duur.
-  const openDelay   = 0.25;
+  const openDelay   = 0.1;
   const charStagger = 0.02; // stagger tussen de letters (zoals de text-hover)
   const linkOffset  = 0.08; // start-offset tussen de links onderling
 
