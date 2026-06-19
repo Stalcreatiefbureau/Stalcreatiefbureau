@@ -1395,7 +1395,7 @@ function initNavMenuStagger() {
 
   // Kleine vertraging vóór de stagger, zodat het menu eerst opent en de
   // links daarna pas instaggeren. Pas openDelay aan op je menu-open-duur.
-  const openDelay = 0.25;
+  const openDelay = 0.1;
 
   // Eén reversibele timeline: open = play (reveal), dicht = reverse (terug).
   // immediateRender van .from() zet de links meteen in hun verborgen
