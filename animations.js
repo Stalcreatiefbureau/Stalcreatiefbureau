@@ -1372,9 +1372,8 @@ function initNavMenuStagger() {
 
   // Wrapper rondom de menu-links. Eerst binnen de nav zoeken, anders
   // paginabreed (voor het geval de wrapper buiten [data-navigation-status]
-  // staat). Zet data-nav-menu op de wrapper met je menu-links in Webflow.
-  // Voor een strak masked effect: geef elk child (of een inner wrapper)
-  // overflow: hidden in de designer.
+  // staat). Zet data-nav-menu op de wrapper met je menu-links in Webflow;
+  // de directe children daarvan zijn de links die we splitsen.
   const menu =
     navStatusEl.querySelector('[data-nav-menu]') ||
     document.querySelector('[data-nav-menu]');
@@ -1394,20 +1393,31 @@ function initNavMenuStagger() {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   // Kleine vertraging vóór de stagger, zodat het menu eerst opent en de
-  // links daarna pas instaggeren. Pas openDelay aan op je menu-open-duur.
-  const openDelay = 0.1;
+  // letters daarna pas instaggeren. Pas openDelay aan op je menu-open-duur.
+  const openDelay   = 0.25;
+  const charStagger = 0.02; // stagger tussen de letters (zoals de text-hover)
+  const linkOffset  = 0.08; // start-offset tussen de links onderling
+
+  // Elke link in letters splitsen mét per-letter masker — net als de
+  // text-hover en de load reveal. mask: 'chars' geeft elk teken een eigen
+  // overflow-hidden wrapper, zodat yPercent: 110 netjes wegklipt. Je hoeft
+  // dus zelf géén overflow: hidden in Webflow te zetten.
+  const splits = links.map(link => new SplitText(link, { type: 'chars', mask: 'chars' }));
 
   // Eén reversibele timeline: open = play (reveal), dicht = reverse (terug).
-  // immediateRender van .from() zet de links meteen in hun verborgen
-  // beginstaat — geen probleem, want het menu is dan dicht.
+  // immediateRender van .from() zet de letters meteen achter hun masker —
+  // geen probleem, want het menu is dan dicht. Elke link krijgt z'n eigen
+  // letter-cascade, met linkOffset ertussen.
   const tl = gsap.timeline({ paused: true });
-  tl.from(links, {
-    yPercent : 110,
-    autoAlpha: 0,
-    duration : 0.5,
-    ease     : 'textHoverEase',
-    stagger  : 0.06,
-  }, openDelay);
+  splits.forEach((split, i) => {
+    if (!split.chars.length) return;
+    tl.from(split.chars, {
+      yPercent : 110,
+      duration : 0.5,
+      ease     : 'textHoverEase',
+      stagger  : charStagger,
+    }, openDelay + i * linkOffset);
+  });
 
   // Observer reageert op élke statuswissel: hamburger-toggle, close-knop én Esc.
   const observer = new MutationObserver(() => {
