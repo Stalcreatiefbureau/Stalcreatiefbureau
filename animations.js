@@ -816,6 +816,244 @@ function initHoverCursorMarquee() {
   });
 }
 
+
+// ── Overlapping slider ─────────────────────────────────────
+
+function initOverlappingSlider() {
+  const inits = document.querySelectorAll('[data-overlap-slider-init]');
+  if (!inits.length) return;
+
+  inits.forEach(setupOverlappingSlider);
+
+  function setupOverlappingSlider(init) {
+    // --- attributes with defaults
+    const minScale = +(init.getAttribute('data-scale')  ?? 0.45);
+    const maxRotation = +(init.getAttribute('data-rotate') ?? -8);
+    const inertia = true;
+
+    const wrap = init.querySelector('[data-overlap-slider-collection]');
+    const slider = init.querySelector('[data-overlap-slider-list]');
+    const slides = Array.from(init.querySelectorAll('[data-overlap-slider-item]'));
+
+    // --- prev / next buttons (optional)
+    // Buttons may live INSIDE [data-overlap-slider-init] or OUTSIDE it.
+    // Lookup order: inside the init container first, then within an
+    // optional [data-overlap-slider-wrap] ancestor (use this when you have
+    // multiple sliders on one page), then fall back to the whole document
+    // (fine when there's a single slider).
+    const scope = init.closest('[data-overlap-slider-wrap]') || document;
+    const prevBtn = init.querySelector('[data-overlap-slider-prev]') || scope.querySelector('[data-overlap-slider-prev]');
+    const nextBtn = init.querySelector('[data-overlap-slider-next]') || scope.querySelector('[data-overlap-slider-next]');
+
+    if (!wrap || !slider || !slides.length) {
+      console.warn("OverlappingSlider: missing required structure. Check Osmo Vault documentation please.");
+      return;
+    }
+    
+    wrap.style.touchAction = 'none';
+    wrap.style.userSelect = 'none';
+
+    let spacing = 0;
+    let slideW = 0;
+    let maxDrag = 0;
+    let dragX = 0;
+    let draggable;
+
+    // simple clamp that always uses latest maxDrag
+    function clamp(value) {
+      if (maxDrag <= 0) return 0;
+      return Math.min(Math.max(value, 0), maxDrag);
+    }
+
+    function update() {
+      // move the whole list
+      gsap.set(slider, { x: -dragX });
+
+      // update each slide's overlap transform
+      slides.forEach((slide, i) => {
+        const threshold = i * spacing;
+        const local = Math.max(0, dragX - threshold);
+        const t = spacing > 0 ? Math.min(local / spacing, 1) : 0;
+
+        gsap.set(slide, {
+          x: local,
+          scale: 1 - (1 - minScale) * t,
+          rotation: maxRotation * t,
+          transformOrigin: '75% center'
+        });
+      });
+    }
+
+    function recalc() {
+      if (!slides.length) return;
+
+      // measure one slide to get width + margin-right as "gap"
+      const style = getComputedStyle(slides[0]);
+      const gapRight = parseFloat(style.marginRight) || 0;
+
+      slideW = slides[0].offsetWidth;
+      spacing = slideW + gapRight;
+      maxDrag = spacing * (slides.length - 1);
+
+      // keep dragX within new bounds
+      dragX = clamp(dragX);
+      update();
+
+      if (draggable) {
+        draggable.applyBounds({ minX: -maxDrag, maxX: 0 });
+      }
+
+      // keep index + buttons in sync after a resize
+      syncIndexFromDrag();
+    }
+
+    // create draggable
+    draggable = Draggable.create(slider, {
+      type: 'x',
+      bounds: { minX: -maxDrag, maxX: 0 }, // will be updated after recalc
+      inertia,
+      maxDuration: 1,
+      snap: true
+        ? (raw) => {
+            // raw is the x value
+            const d = clamp(-raw);
+            const idx = spacing > 0 ? Math.round(d / spacing) : 0;
+            return -idx * spacing;
+          }
+        : false,
+      onDrag() {
+        dragX = clamp(-this.x);
+        update();
+      },
+      onThrowUpdate() {
+        dragX = clamp(-this.x);
+        update();
+      },
+      // sync currentIndex after the user lets go / throw settles,
+      // so buttons + keyboard continue from the correct slide
+      onDragEnd() {
+        syncIndexFromDrag();
+      },
+      onThrowComplete() {
+        syncIndexFromDrag();
+      }
+    })[0];
+
+    // recalc on resize
+    const ro = new ResizeObserver(() => {
+      recalc();
+    });
+    ro.observe(init);
+    
+    // keyboard navigation (arrow left/right)
+    let active = false;
+    let currentIndex = 0;
+
+    // derive the active index from the current drag position
+    function syncIndexFromDrag() {
+      currentIndex = spacing > 0 ? Math.round(dragX / spacing) : 0;
+      currentIndex = Math.max(0, Math.min(currentIndex, slides.length - 1));
+      updateButtons();
+    }
+
+    // enable/disable buttons at the start/end of the slider.
+    // uses aria-disabled + .is-disabled so it also works on Webflow
+    // links/divs (where the native `disabled` property is ignored).
+    function updateButtons() {
+      if (prevBtn) {
+        const atStart = currentIndex <= 0;
+        prevBtn.disabled = atStart;
+        prevBtn.setAttribute('aria-disabled', atStart);
+        prevBtn.classList.toggle('is-disabled', atStart);
+      }
+      if (nextBtn) {
+        const atEnd = currentIndex >= slides.length - 1;
+        nextBtn.disabled = atEnd;
+        nextBtn.setAttribute('aria-disabled', atEnd);
+        nextBtn.classList.toggle('is-disabled', atEnd);
+      }
+    }
+
+    // helper function to switch slides
+    function goToSlide(idx) {
+      idx = Math.max(0, Math.min(idx, slides.length - 1));
+      currentIndex = idx;
+    
+      const targetX = idx * spacing;
+    
+      gsap.to({ value: dragX }, {
+        value: targetX,
+        duration: 0.6,
+        ease: "power4.out",
+        onUpdate: function () {
+          dragX = this.targets()[0].value;
+          gsap.set(slider, { x: -dragX });
+          update(); // animate overlap transforms properly
+        }
+      });
+    
+      updateButtons();
+      wrap.setAttribute("aria-label", `Slide ${idx + 1} of ${slides.length}`);
+    }
+
+    // Observe visibility
+    const io = new IntersectionObserver(entries => {
+      active = entries[0].isIntersecting;
+    }, {
+      threshold: 0.25 // slider must be at least 25% visible
+    });
+
+    io.observe(init);
+    
+    // Aria labels for accessibility
+    wrap.setAttribute("role", "region");
+    wrap.setAttribute("aria-roledescription", "carousel");
+    wrap.setAttribute("aria-label", "Testimonial slider");
+
+    // --- button controls
+    if (prevBtn) {
+      prevBtn.setAttribute('aria-label', 'Previous slide');
+      prevBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        goToSlide(currentIndex - 1);
+      });
+    }
+
+    if (nextBtn) {
+      nextBtn.setAttribute('aria-label', 'Next slide');
+      nextBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        goToSlide(currentIndex + 1);
+      });
+    }
+
+    // key listener
+    function onKey(e) {
+      if (!active) return; // only respond when slider in view
+
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        goToSlide(currentIndex - 1);
+      }
+
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        goToSlide(currentIndex + 1);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+
+    // initial layout
+    recalc();
+    updateButtons();
+  }
+}
+
+// Initialize Overlapping Slider
+document.addEventListener("DOMContentLoaded", function () {
+  initOverlappingSlider();
+});
+
 // ── Init ─────────────────────────────────────────────────────
 
 window.addEventListener('load', () => {
@@ -829,4 +1067,5 @@ window.addEventListener('load', () => {
   initLogoWallCycle();
   initRadialMarquee();
   initHoverCursorMarquee();
+  initOverlappingSlider();
 });
